@@ -6,8 +6,9 @@ import { useState, useEffect, useCallback, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
+import { useLang } from "@/lib/i18n";
 
-const ORDER_STATUSES = ["Ordered", "Goods Receipt", "Goods Issue", "Customer Confirms"];
+const ORDER_STATUSES_EN = ["Ordered", "Goods Receipt", "Goods Issue", "Customer Confirms"];
 const PROVIDERS = ["Amazon", "DM", "Rossmann", "Other"];
 
 const fmt = (v) =>
@@ -15,13 +16,14 @@ const fmt = (v) =>
 
 export default function OrdersPage() {
   return (
-    <Suspense fallback={<main className="min-h-screen bg-white p-6"><p className="text-gray-400">Loading orders...</p></main>}>
+    <Suspense fallback={<main className="min-h-screen bg-white p-6"><p className="text-gray-400">Loading...</p></main>}>
       <OrdersContent />
     </Suspense>
   );
 }
 
 function OrdersContent() {
+  const { t } = useLang();
   const searchParams = useSearchParams();
   const [orders, setOrders] = useState([]);
   const [customers, setCustomers] = useState([]);
@@ -30,6 +32,10 @@ function OrdersContent() {
   const [editingId, setEditingId] = useState(null);
   const [editValues, setEditValues] = useState({});
   const [saving, setSaving] = useState(false);
+
+  const ORDER_STATUSES = [
+    t.status_ordered, t.status_goods_receipt, t.status_goods_issue, t.status_customer_confirms,
+  ];
 
   const fetchOrders = useCallback(async (customerId) => {
     setLoading(true);
@@ -80,7 +86,6 @@ function OrdersContent() {
     setEditValues((v) => ({ ...v, [field]: value }));
   }
 
-  // Derived values for the row being edited
   const qty = parseFloat(editValues.quantity) || 0;
   const price = parseFloat(editValues.price_per_qty_eur) || 0;
   const costEur = parseFloat(editValues.cost_eur) || 0;
@@ -104,7 +109,7 @@ function OrdersContent() {
       cost_rmb: costRmb,
       exchange_rate: rate,
       purchase_date: editValues.purchase_date,
-      delivery_date: editValues.delivery_date,
+      delivery_date: editValues.delivery_date || null,
       order_status: editValues.order_status,
       payment_status: editValues.payment_status,
       notes: editValues.notes,
@@ -117,7 +122,7 @@ function OrdersContent() {
   }
 
   async function deleteOrder(id) {
-    if (!confirm("Delete this order?")) return;
+    if (!confirm(t.orders_delete + "?")) return;
     await getSupabase().from("order_items").delete().eq("id", id);
     fetchOrders(filterCustomer);
   }
@@ -125,47 +130,43 @@ function OrdersContent() {
   const inputCls = "border border-gray-400 rounded px-2 py-1 text-sm w-full bg-white focus:outline-none focus:border-black";
   const selectCls = "border border-gray-400 rounded px-2 py-1 text-sm w-full bg-white focus:outline-none focus:border-black";
 
+  const COLUMNS = [
+    t.col_customer, t.col_brand, t.col_product, t.col_provider,
+    t.col_price_unit, t.col_qty, t.col_total_eur, t.col_cost_eur,
+    t.col_cost_rmb, t.col_rate, t.col_paid_rmb, t.col_margin_eur,
+    t.col_margin_rmb, t.col_purchase_date, t.col_delivery_date,
+    t.col_order_status, t.col_payment, t.col_notes, "",
+  ];
+
   return (
     <main className="min-h-screen bg-white p-6">
       <div className="flex items-center gap-4 mb-6">
-        <Link href="/" className="text-base text-gray-500 hover:text-black transition">
-          ← Home
-        </Link>
-        <h1 className="text-3xl font-bold text-black">Order List</h1>
-        <Link
-          href="/orders/new"
-          className="ml-auto border-2 border-gray-800 text-black px-4 py-2 rounded-xl font-semibold hover:bg-gray-100 transition text-base"
-        >
-          + New Order
+        <Link href="/" className="text-base text-gray-500 hover:text-black transition">{t.home}</Link>
+        <h1 className="text-3xl font-bold text-black">{t.orders_title}</h1>
+        <Link href="/orders/new" className="ml-auto border-2 border-gray-800 text-black px-4 py-2 rounded-xl font-semibold hover:bg-gray-100 transition text-base">
+          {t.orders_new}
         </Link>
       </div>
 
-      {/* Filter */}
       <div className="mb-6 flex items-center gap-3">
-        <label className="text-base font-semibold text-black">Filter by customer:</label>
-        <select
-          value={filterCustomer}
-          onChange={handleFilterChange}
-          className="border-2 border-gray-800 rounded-xl px-4 py-2 text-base bg-white text-black focus:outline-none focus:ring-2 focus:ring-black"
-        >
-          <option value="">All customers</option>
-          {customers.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
+        <label className="text-base font-semibold text-black">{t.orders_filter}</label>
+        <select value={filterCustomer} onChange={handleFilterChange} className="border-2 border-gray-800 rounded-xl px-4 py-2 text-base bg-white text-black focus:outline-none focus:ring-2 focus:ring-black">
+          <option value="">{t.orders_all}</option>
+          {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
       </div>
 
       {loading ? (
-        <p className="text-gray-400 text-base">Loading orders...</p>
+        <p className="text-gray-400 text-base">{t.orders_loading}</p>
       ) : orders.length === 0 ? (
-        <p className="text-gray-400 text-base">No orders found.</p>
+        <p className="text-gray-400 text-base">{t.orders_empty}</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="border-collapse w-full min-w-max text-sm">
             <thead>
               <tr className="bg-black text-white">
-                {["Customer","Brand","Product","Provider","Price/Unit (€)","Qty","Total (€)","Cost (€)","Cost (¥)","Rate","Paid (¥)","Margin (€)","Margin (¥)","Purchase Date","Delivery Date","Order Status","Payment","Notes",""].map((h) => (
-                  <th key={h} className="px-3 py-3 text-left font-semibold border border-gray-700 whitespace-nowrap">{h}</th>
+                {COLUMNS.map((h, i) => (
+                  <th key={i} className="px-3 py-3 text-left font-semibold border border-gray-700 whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -203,22 +204,22 @@ function OrdersContent() {
                       <td className="px-2 py-1 border-2 border-black"><input type="date" value={editValues.delivery_date} onChange={(e) => setVal("delivery_date", e.target.value)} className={inputCls} /></td>
                       <td className="px-2 py-1 border-2 border-black">
                         <select value={editValues.order_status} onChange={(e) => setVal("order_status", e.target.value)} className={selectCls}>
-                          {ORDER_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                          {ORDER_STATUSES_EN.map((s) => <option key={s} value={s}>{s}</option>)}
                         </select>
                       </td>
                       <td className="px-2 py-1 border-2 border-black">
                         <select value={editValues.payment_status} onChange={(e) => setVal("payment_status", e.target.value)} className={selectCls}>
-                          <option value="Unpaid">Unpaid</option>
-                          <option value="Paid">Paid</option>
+                          <option value="Unpaid">{t.status_unpaid}</option>
+                          <option value="Paid">{t.status_paid}</option>
                         </select>
                       </td>
                       <td className="px-2 py-1 border-2 border-black"><input value={editValues.notes} onChange={(e) => setVal("notes", e.target.value)} className={inputCls} /></td>
                       <td className="px-2 py-1 border-2 border-black whitespace-nowrap">
                         <button onClick={() => saveEdit(order.id)} disabled={saving} className="bg-black text-white px-3 py-1 rounded font-semibold mr-1 hover:bg-gray-800 disabled:opacity-50">
-                          {saving ? "..." : "Save"}
+                          {saving ? "..." : t.orders_save}
                         </button>
                         <button onClick={() => setEditingId(null)} className="border border-gray-400 px-3 py-1 rounded hover:bg-gray-100">
-                          Cancel
+                          {t.orders_cancel}
                         </button>
                       </td>
                     </tr>
@@ -241,19 +242,19 @@ function OrdersContent() {
                     <td className="px-3 py-2 border border-gray-300 text-right tabular-nums">{fmt(order.margin_eur)}</td>
                     <td className="px-3 py-2 border border-gray-300 text-right tabular-nums">{fmt(order.margin_rmb)}</td>
                     <td className="px-3 py-2 border border-gray-300 whitespace-nowrap">{order.purchase_date}</td>
-                    <td className="px-3 py-2 border border-gray-300 whitespace-nowrap">{order.delivery_date}</td>
+                    <td className="px-3 py-2 border border-gray-300 whitespace-nowrap">{order.delivery_date ?? "-"}</td>
                     <td className="px-3 py-2 border border-gray-300 whitespace-nowrap">
                       <span className="border border-gray-400 rounded px-2 py-0.5 text-xs font-medium">{order.order_status}</span>
                     </td>
                     <td className="px-3 py-2 border border-gray-300">
                       <span className={`rounded px-2 py-0.5 text-xs font-semibold ${order.payment_status === "Paid" ? "bg-black text-white" : "border border-gray-400 text-gray-600"}`}>
-                        {order.payment_status}
+                        {order.payment_status === "Paid" ? t.status_paid : t.status_unpaid}
                       </span>
                     </td>
                     <td className="px-3 py-2 border border-gray-300 max-w-[150px] truncate">{order.notes ?? "-"}</td>
                     <td className="px-3 py-2 border border-gray-300 whitespace-nowrap">
-                      <button onClick={() => startEdit(order)} className="border border-gray-800 px-3 py-1 rounded text-sm font-semibold hover:bg-gray-100 mr-1">Edit</button>
-                      <button onClick={() => deleteOrder(order.id)} className="border border-gray-400 px-3 py-1 rounded text-sm text-gray-500 hover:bg-red-50 hover:border-red-400 hover:text-red-600">Del</button>
+                      <button onClick={() => startEdit(order)} className="border border-gray-800 px-3 py-1 rounded text-sm font-semibold hover:bg-gray-100 mr-1">{t.orders_edit}</button>
+                      <button onClick={() => deleteOrder(order.id)} className="border border-gray-400 px-3 py-1 rounded text-sm text-gray-500 hover:bg-red-50 hover:border-red-400 hover:text-red-600">{t.orders_delete}</button>
                     </td>
                   </tr>
                 );
