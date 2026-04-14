@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { signOut } from "next-auth/react";
 import { useLang } from "@/lib/i18n";
 
 export default function Home() {
@@ -44,6 +45,13 @@ export default function Home() {
               <span className="text-gray-800 text-2xl">›</span>
             </Link>
           ))}
+
+          <button
+            onClick={() => signOut({ callbackUrl: "/login" })}
+            className="border-2 border-gray-800 bg-white text-black font-semibold text-lg py-4 rounded-xl hover:bg-gray-100 transition mt-2"
+          >
+            Sign Out
+          </button>
         </div>
       </div>
     </main>
