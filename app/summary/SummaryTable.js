@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useMemo, useState } from "react";
 import { useLang } from "@/lib/i18n";
+import { buildSummaryData } from "@/lib/summary";
 
 const MONTH_KEYS = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
 
@@ -15,8 +17,17 @@ function fmtPct(value) {
   return (value >= 0 ? "+" : "") + value.toFixed(0) + "%";
 }
 
-export default function SummaryTable({ summary }) {
+export default function SummaryTable({ orderItems, additionalCosts }) {
   const { t } = useLang();
+  const [paymentFilter, setPaymentFilter] = useState("All");
+
+  const summary = useMemo(() => {
+    const filtered = paymentFilter === "All"
+      ? orderItems
+      : orderItems.filter((o) => o.payment_status === paymentFilter);
+    return buildSummaryData(filtered, additionalCosts);
+  }, [orderItems, additionalCosts, paymentFilter]);
+
   const { years, months, totals, annualised, yoy } = summary;
 
   return (
@@ -24,6 +35,18 @@ export default function SummaryTable({ summary }) {
       <div className="flex items-center gap-4 mb-8">
         <Link href="/" className="text-base text-gray-500 hover:text-black transition">{t.home}</Link>
         <h1 className="text-3xl font-bold text-black">{t.summary_title}</h1>
+        <div className="ml-auto flex items-center gap-3">
+          <label className="text-base font-semibold text-black">{t.col_payment}</label>
+          <select
+            value={paymentFilter}
+            onChange={(e) => setPaymentFilter(e.target.value)}
+            className="border-2 border-gray-800 rounded-xl px-4 py-2 text-base bg-white text-black focus:outline-none"
+          >
+            <option value="All">{t.orders_all}</option>
+            <option value="Paid">{t.status_paid}</option>
+            <option value="Unpaid">{t.status_unpaid}</option>
+          </select>
+        </div>
       </div>
 
       <div className="overflow-x-auto">
